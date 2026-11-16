@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<!-- Netzwerksperre: Die Seite darf keine Daten senden oder nachladen (connect-src 'none', form-action 'none'). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta name="theme-color" content="#294038">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Journal">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<title>Fall-Journal</title>
+<style>
+  :root {
+    --gruen: #294038;
+    --gruen-2: #374E40;
+    --creme: #F9F6ED;
+    --karte: #FFFFFF;
+    --gold: #C29A58;
+    --text: #294038;
+    --text-leise: #5B6B63;
+    --linie: #E3DDCB;
+    --warn-bg: #FBEFD9;
+    --fehler-bg: #F6DEDA;
+    --fehler: #8A2E22;
+    --ok-bg: #E4EBDF;
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --creme: #1B2622; --karte: #24332D; --text: #EDEAE0; --text-leise: #B3BCB5;
+      --linie: #3A4A43; --warn-bg: #4A3C22; --fehler-bg: #4D2A25; --fehler: #F2B8AE;
+      --ok-bg: #2F4236; --gruen: #A8C3B3; --gruen-2: #4F6E5C;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--creme); color: var(--text);
+    font: 16px/1.5 -apple-system, "Segoe UI", system-ui, sans-serif;
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+  header { padding: calc(16px + env(safe-area-inset-top)) 16px 12px; border-bottom: 1px solid var(--linie); }
+  header h1 { font: 600 1.35rem/1.2 Georgia, "Fraunces", serif; margin: 0; }
+  header p { margin: 4px 0 0; color: var(--text-leise); font-size: .85rem; }
+  main { max-width: 680px; margin: 0 auto; padding: 16px; }
+  nav {
+    position: fixed; bottom: 0; left: 0; right: 0; display: flex;
+    background: var(--karte); border-top: 1px solid var(--linie);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  nav button {
+    flex: 1; border: 0; background: none; padding: 12px 4px; font: inherit; font-size: .85rem;
+    color: var(--text-leise); cursor: pointer;
+  }
+  nav button[aria-current="page"] { color: var(--gruen); font-weight: 600; box-shadow: inset 0 3px 0 var(--gold); }
+  .karte { background: var(--karte); border: 1px solid var(--linie); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+  .eintrag { display: block; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+  .eintrag h3 { margin: 0 0 4px; font-size: 1rem; }
+  .meta { font-size: .8rem; color: var(--text-leise); }
+  .chip { display: inline-block; font-size: .72rem; padding: 2px 8px; border-radius: 99px; background: var(--ok-bg); margin-right: 4px; }
+  .chip.entwurf { background: var(--warn-bg); }
+  label { display: block; font-weight: 600; margin: 18px 0 4px; }
+  .hilfe { display: block; font-weight: 400; font-size: .82rem; color: var(--text-leise); margin-bottom: 6px; }
+  input[type=text], textarea {
+    width: 100%; font: inherit; color: var(--text); background: var(--karte);
+    border: 1px solid var(--linie); border-radius: 10px; padding: 10px 12px;
+  }
+  textarea { min-height: 96px; resize: vertical; }
+  input:focus, textarea:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+  .optionen { display: flex; flex-wrap: wrap; gap: 8px; }
+  .optionen label {
+    font-weight: 400; margin: 0; border: 1px solid var(--linie); border-radius: 99px;
+    padding: 6px 12px; background: var(--karte); cursor: pointer; font-size: .9rem;
+  }
+  .optionen input { margin-right: 6px; accent-color: var(--gruen-2); }
+
+  /* Prüfung */
+  .pruefung h2 { font-size: 1rem; margin: 0 0 4px; }
+  .pruefung .stand { font-size: .78rem; color: var(--text-leise); margin: 0 0 10px; }
+  .regel { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--linie); }
+  .regel:first-of-type { border-top: 0; }
+  .zeichen {
+    flex: none; width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center;
+    font-weight: 700; font-size: .85rem; background: var(--ok-bg); color: var(--gruen);
+  }
+  .regel.fehler .zeichen { background: var(--fehler-bg); color: var(--fehler); }
+  .regel.hinweis .zeichen { background: var(--warn-bg); color: var(--text); }
+  .regel .titel { font-weight: 600; font-size: .92rem; }
+  .regel .funde { font-size: .82rem; margin-top: 4px; }
+  .regel .funde mark { background: var(--fehler-bg); color: var(--fehler); padding: 0 4px; border-radius: 4px; }
+  .regel.hinweis .funde mark { background: var(--warn-bg); color: var(--text); }
+  .regel .rat { font-size: .8rem; color: var(--text-leise); margin-top: 2px; }
+  .frage { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--linie); }
+  .frage p { margin: 0 0 8px; font-size: .92rem; }
+
+  .knopf {
+    display: block; width: 100%; border: 0; border-radius: 12px; padding: 14px; font: inherit;
+    font-weight: 600; cursor: pointer; background: var(--gruen-2); color: #FFF; margin-top: 12px;
+  }
+  .knopf.zweit { background: transparent; color: var(--gruen); border: 1px solid var(--linie); }
+  .knopf:disabled { opacity: .45; cursor: not-allowed; }
+  .warnung { font-size: .85rem; color: var(--text-leise); margin-top: 8px; }
+  h2.abschnitt { font: 600 1.1rem/1.3 Georgia, serif; margin: 8px 0 12px; }
+  .leer { color: var(--text-leise); text-align: center; padding: 32px 0; }
+  ol { padding-left: 20px; margin: 8px 0 0; }
+  ol li { margin-bottom: 4px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Fall-Journal</h1>
+  <p>v2 · Die Einträge bleiben auf diesem Gerät.</p>
+</header>
+
+<main>
+  <section id="v-liste">
+    <h2 class="abschnitt">Meine Einträge</h2>
+    <div id="liste"></div>
+    <button class="knopf" id="neu">Neuer Eintrag</button>
+  </section>
+
+  <section id="v-eintrag" hidden>
+    <h2 class="abschnitt" id="eintrag-titel">Neuer Eintrag</h2>
+    <form id="form" autocomplete="off">
+      <label for="f-titel">Kurztitel
+        <span class="hilfe">Nur zum Wiederfinden, z. B. „Treppe als Gegner“.</span></label>
+      <input type="text" id="f-titel" name="titel" required>
+
+      <label for="f-situation">Situation und Beschwerden
+        <span class="hilfe">Stichpunkte reichen. Immer „die Person“, nur Symptome bzw. Beschwerden.</span></label>
+      <textarea id="f-situation" name="situation" required></textarea>
+
+      <label for="f-annahme">Annahme der Person
+        <span class="hilfe">Was hat die Person geglaubt oder befürchtet?</span></label>
+      <textarea id="f-annahme" name="annahme" required></textarea>
+
+      <label for="f-wende">Was geholfen hat
+        <span class="hilfe">Eine Erklärung, eine Übung, eine Erfahrung, ein anderer Blick.</span></label>
+      <textarea id="f-wende" name="wende"></textarea>
+
+      <label for="f-kern">Fachlicher Kern in einem Satz
+        <span class="hilfe">Die Botschaft, die hängen bleiben soll. Claude sucht die Belege.</span></label>
+      <textarea id="f-kern" name="kern" style="min-height:64px"></textarea>
+
+      <label>Säule</label>
+      <div class="optionen">
+        <label><input type="radio" name="saeule" value="Körper wahrnehmen">Körper wahrnehmen</label>
+        <label><input type="radio" name="saeule" value="Belastung steuern">Belastung steuern</label>
+        <label><input type="radio" name="saeule" value="Hürden im Kopf">Hürden im Kopf</label>
+        <label><input type="radio" name="saeule" value="offen" checked>weiß nicht</label>
+      </div>
+
+      <label>Formate</label>
+      <div class="optionen">
+        <label><input type="checkbox" name="formate" value="Hooks" checked>Hooks</label>
+        <label><input type="checkbox" name="formate" value="Karussell" checked>Karussell</label>
+        <label><input type="checkbox" name="formate" value="Stories" checked>Stories</label>
+        <label><input type="checkbox" name="formate" value="Reel">Reel</label>
+        <label><input type="checkbox" name="formate" value="LinkedIn">LinkedIn</label>
+      </div>
+
+      <label for="f-notiz">Notiz an Claude (optional)</label>
+      <textarea id="f-notiz" name="notiz" style="min-height:64px"></textarea>
+
+      <div class="karte pruefung" style="margin-top:22px">
+        <h2>Verfremdungs-Prüfung</h2>
+        <p class="stand" id="regelstand"></p>
+        <div id="regeln"></div>
+        <div class="frage">
+          <p><strong>Erkennungsfrage:</strong> Könnte jemand, der die Person kennt (Kolleg*innen, Angehörige oder die Person selbst), sie in diesem Text wiedererkennen?</p>
+          <div class="optionen">
+            <label><input type="radio" name="erkennbar" value="nein">Nein</label>
+            <label><input type="radio" name="erkennbar" value="unsicher">Unsicher</label>
+            <label><input type="radio" name="erkennbar" value="ja">Ja</label>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="knopf zweit">Entwurf speichern</button>
+      <button type="button" class="knopf" id="uebergeben" disabled>An Claude übergeben</button>
+      <p class="warnung" id="hinweis"></p>
+      <button type="button" class="knopf zweit" id="loeschen" hidden>Eintrag von diesem Gerät löschen</button>
+    </form>
+  </section>
+
+  <section id="v-info" hidden>
+    <h2 class="abschnitt">So funktioniert es</h2>
+    <div class="karte">
+      <p><strong>1. Erfassen:</strong> Den Fall stichpunktartig eintragen. Gespeichert wird nur im Browser dieses Geräts.</p>
+      <p><strong>2. Prüfen:</strong> Die App prüft den Text laufend gegen das Regelwerk. Übergeben geht erst, wenn keine Regel verletzt ist und die Erkennungsfrage mit „Nein“ beantwortet ist. Claude prüft beim Einlesen ein zweites Mal.</p>
+      <p><strong>3. Übergeben:</strong> Der Knopf erzeugt eine Markdown-Datei. Im Teilen-Menü „In Dateien sichern“ wählen, dann OneDrive › deinen Eingangsordner.</p>
+    </div>
+    <div class="karte" id="sperr-karte">
+      <p><strong>Eigene Sperrwörter</strong></p>
+      <p class="meta">Wörter, die nie in einem Eintrag stehen dürfen, z. B. dein Ort, Einrichtung, Abteilung, Stationsnamen oder Namen. Ein Wort oder eine Wortgruppe pro Zeile. Die Liste bleibt nur auf diesem Gerät.</p>
+      <textarea id="sperrwoerter" style="min-height:120px" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+      <button type="button" class="knopf" id="sperr-speichern">Sperrwörter speichern</button>
+      <p class="warnung" id="sperr-stand"></p>
+    </div>
+    <div class="karte">
+      <p><strong>Einmalig einrichten: OneDrive in „Dateien“</strong></p>
+      <ol>
+        <li>OneDrive-App aus dem App Store laden und mit demselben Konto anmelden wie am PC.</li>
+        <li>App „Dateien“ öffnen › Durchsuchen › ⋯ (Mehr) › Bearbeiten.</li>
+        <li>OneDrive einschalten und fertig.</li>
+      </ol>
+      <p class="meta">Die Bezeichnungen können je nach iOS-Version etwas abweichen.</p>
+    </div>
+    <div class="karte">
+      <p><strong>Grenzen der automatischen Prüfung:</strong> Die App erkennt typische Wörter und Muster. Sie kann nicht beurteilen, ob eine ungewöhnliche Geschichte als Ganzes erkennbar ist. Dafür gibt es die Erkennungsfrage und die zweite Prüfung durch Claude.</p>
+      <p><strong>Datensicherung:</strong> Wenn du die Websitedaten löschst oder das Gerät wechselst, sind Entwürfe weg. Übergebene Einträge liegen sicher im Ordner.</p>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button data-ziel="liste" aria-current="page">Einträge</button>
+  <button data-ziel="eintrag">Neu</button>
+  <button data-ziel="info">Info</button>
+</nav>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ===== Regelwerk =====
+     Jede Regel enthält Wortmuster. Ein Treffer sperrt die Übergabe ("sperrt: true") oder ist nur ein Hinweis.
+     Eigene Sperrwörter kommen aus dem Gerätespeicher dazu und stehen nicht im Code. */
+  var REGELSTAND = "Regelwerk v1 (16.11.2026) · Entwurf, rechtlich noch nicht geprüft";
+  var REGELN = [
+    {
+      id: "geschlecht", titel: "Keine Angaben zum Geschlecht", sperrt: true,
+      rat: "Schreibe „die Person“. „sie“ ist erlaubt, weil es sich auf „die Person“ bezieht.",
+      muster: [
+        "er", "ihn", "ihm", "seine[mnrs]?",
+        "Mann", "Männer", "Frau(en)?", "Herrn?", "Junge", "Mädchen",
+        "Patient(in|innen|en)?", "Klient(in|innen|en)?", "Sportler(in|innen)?", "Läufer(in|innen)?",
+        "Radfahrer(in|innen)?", "Radsportler(in|innen)?", "Triathlet(in|innen|en)?", "Spieler(in|innen)?",
+        "Mutter", "Vater", "Sohn", "Tochter", "Ehe(mann|frau)", "Freund(in)?", "Partner(in)?",
+        "Bruder", "Schwester", "Oma", "Opa", "Witwer?", "Witwe",
+        "Kolleg(e|in)", "Chef(in)?", "Kunde", "Kundin", "Teilnehmer(in)?"
+      ]
+    },
+    {
+      id: "alter", titel: "Keine Altersangaben", sperrt: true,
+      rat: "Kein Alter, keine Lebensphase. Wenn es inhaltlich wichtig ist, in die Notiz an Claude: „Alter spielt eine Rolle“.",
+      muster: [
+        "\\d{1,3}\\s*(J\\.|Jahre?n?|jährig\\p{L}*|-jährig\\p{L}*)", "\\d0er", "\\d0ern",
+        "(Anfang|Mitte|Ende)\\s+\\d0", "jährig\\p{L}*",
+        "Rentner(in)?", "Rente", "Ruhestand", "Senior(in|en)?", "Teenager", "Jugendliche[nr]?",
+        "Kind", "Student(in)?", "Schüler(in)?", "Azubi", "Auszubildende[r]?",
+        "schwanger\\p{L}*", "Schwangerschaft", "Wechseljahre", "Menopause"
+      ]
+    },
+    {
+      id: "diagnose", titel: "Keine Diagnosen", sperrt: true,
+      rat: "Beschreibe Symptome bzw. Beschwerden („Ziehen in der Wade“, „Erschöpfung“), nicht die Diagnose.",
+      muster: [
+        "[A-Z]\\d{2}\\.\\d{1,2}", "\\p{L}*itis", "\\p{L}*syndrom\\p{L}*", "\\p{L}*störung(en)?",
+        "\\p{L}*arthrose", "\\p{L}*fraktur", "\\p{L}*ruptur", "\\p{L}*(band|sehnen|muskel)riss",
+        "Bandscheibe\\p{L}*", "Prolaps", "Skoliose", "Osteoporose", "Rheuma\\p{L}*", "Fibromyalgie",
+        "Meniskus\\p{L}*", "Kreuzband\\p{L}*", "Fersensporn", "Hallux\\p{L}*", "Morbus", "Parkinson",
+        "Multiple(n)?\\s+Sklerose", "MS", "Schlaganfall", "Infarkt", "Herzinfarkt", "Diabetes", "Krebs",
+        "Tumor\\p{L}*", "Endoprothese", "TEP", "Prothese", "Operation", "operiert", "OP",
+        "Depression(en)?", "depressiv\\p{L}*", "Angst(störung|erkrankung)", "Panikattacke\\p{L}*",
+        "PTBS", "Trauma\\p{L}*", "traumatisiert", "Borderline", "Schizophren\\p{L}*", "Psychose\\p{L}*",
+        "psychotisch\\p{L}*", "bipolar\\p{L}*", "Manie", "manisch", "ADHS", "ADS", "Autis\\p{L}*",
+        "Essstörung\\p{L}*", "Anorexie", "Bulimie", "Magersucht", "Sucht", "süchtig",
+        "\\p{L}+abhängigkeit", "(alkohol|drogen|medikamenten|spiel)abhängig\\p{L}*", "Burn-?out", "Suizid\\p{L}*", "suizidal", "Selbstverletzung",
+        "Zwang\\p{L}*", "somatoform\\p{L}*", "Diagnose\\p{L}*", "diagnostiziert"
+      ]
+    },
+    {
+      id: "ort", titel: "Kein Ort, kein Zeitpunkt, keine Einrichtung", sperrt: true,
+      rat: "Nichts, was auf deinen Arbeitsplatz, eine Stadt oder einen Zeitraum schließen lässt.",
+      muster: [
+        "Klinik\\p{L}*", "Krankenhaus", "Station", "stationär\\p{L}*", "Tagesklinik", "Ambulanz",
+        "ambulant\\p{L}*", "Reha\\p{L}*", "Praxis", "Aufnahme", "Entlassung", "entlassen",
+        "Zimmer", "Visite",
+        "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag",
+        "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September",
+        "Oktober", "November", "Dezember", "gestern", "vorgestern", "heute", "letzte[nr]?\\s+Woche",
+        "diese[nr]?\\s+Woche", "Weihnachten", "Ostern", "Silvester",
+        "\\d{1,2}\\.\\s?\\d{1,2}\\.(\\d{2,4})?", "\\d{1,2}([:.]\\d{2})?\\s*Uhr", "(19|20)\\d{2}"
+      ]
+    },
+    {
+      id: "umstaende", titel: "Keine erkennbaren Lebensumstände", sperrt: true,
+      rat: "Kein Beruf, keine Familie, keine Herkunft, keine Namen oder Initialen, keine genauen Körpermaße.",
+      muster: [
+        "Lehrer(in)?", "Polizist(in)?", "Arzt", "Ärztin", "Pfleger(in)?", "Pflegekraft", "Erzieher(in)?",
+        "Ingenieur(in)?", "Handwerker(in)?", "Soldat(in)?", "Feuerwehr\\p{L}*", "Berufs\\p{L}*",
+        "verheiratet", "geschieden", "verwitwet", "Kinder[n]?", "Enkel\\p{L}*", "Familie",
+        "Herkunft", "Migration\\p{L}*", "Flucht", "geflüchtet",
+        "[A-ZÄÖÜ]\\.\\s?[A-ZÄÖÜ]\\.", "Herr\\s+[A-ZÄÖÜ]\\p{L}*", "Frau\\s+[A-ZÄÖÜ]\\p{L}*",
+        "\\d+([.,]\\d+)?\\s*(kg|cm|Kilo)", "Marathon\\p{L}*", "Ironman", "Wettkampf\\p{L}*",
+        "Meisterschaft\\p{L}*", "Verein\\p{L}*", "Kader", "Unfall\\p{L}*"
+      ]
+    },
+    {
+      id: "schmerz", titel: "Schmerzbezug", sperrt: false,
+      rat: "Kein Verbot. Der Fall wird beim Erzeugen gesondert behandelt.",
+      muster: ["\\p{L}*schmerz\\p{L}*", "weh", "tut\\s+weh"]
+    }
+  ];
+
+  var GRENZE_VOR = "(?<![\\p{L}\\p{N}])", GRENZE_NACH = "(?![\\p{L}\\p{N}])";
+  REGELN.forEach(function (r) {
+    // Großbuchstaben-Muster (Initialen, ICD, Anreden) prüfen wir ohne "i", alles andere ohne Groß/Klein.
+    var mitCase = r.muster.filter(function (m) { return /\[A-Z|Herr\\s|Frau\\s|^MS$|^OP$|^TEP$|^ADS$/.test(m); });
+    var ohneCase = r.muster.filter(function (m) { return mitCase.indexOf(m) < 0; });
+    r.re = [];
+    if (ohneCase.length) r.re.push(new RegExp(GRENZE_VOR + "(" + ohneCase.join("|") + ")" + GRENZE_NACH, "giu"));
+    if (mitCase.length) r.re.push(new RegExp(GRENZE_VOR + "(" + mitCase.join("|") + ")" + GRENZE_NACH, "gu"));
+  });
+
+  /* ===== Eigene Sperrwörter (nur Gerätespeicher) ===== */
+  var SPERR_SCHLUESSEL = "fall-journal-sperrwoerter";
+  var eigeneRegel = null;
+  function sperrListe() {
+    try { return (localStorage.getItem(SPERR_SCHLUESSEL) || "").split("\n").map(function (w) { return w.trim(); }).filter(Boolean); }
+    catch (e) { return []; }
+  }
+  function eigeneRegelBauen() {
+    var woerter = sperrListe();
+    if (!woerter.length) { eigeneRegel = null; return; }
+    var teile = woerter.map(function (w) {
+      return w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+    });
+    eigeneRegel = {
+      id: "eigene", titel: "Keine eigenen Sperrwörter", sperrt: true,
+      rat: "Dieses Wort steht auf deiner Sperrliste (Info › Eigene Sperrwörter).",
+      re: [new RegExp(GRENZE_VOR + "(" + teile.join("|") + ")" + GRENZE_NACH, "giu")]
+    };
+  }
+  function alleRegeln() {
+    var basis = REGELN.slice(0, -1), hinweis = REGELN[REGELN.length - 1];
+    return basis.concat(eigeneRegel ? [eigeneRegel] : [], [hinweis]);
+  }
+  eigeneRegelBauen();
+
+  var FELDER = { titel: "Kurztitel", situation: "Situation", annahme: "Annahme", wende: "Was geholfen hat", kern: "Kern", notiz: "Notiz" };
+
+  function pruefeText(d) {
+    return alleRegeln().map(function (r) {
+      var funde = [];
+      Object.keys(FELDER).forEach(function (f) {
+        var text = d[f] || "";
+        r.re.forEach(function (re) {
+          re.lastIndex = 0; var m;
+          while ((m = re.exec(text))) {
+            var wort = m[0];
+            if (!funde.some(function (x) { return x.wort.toLowerCase() === wort.toLowerCase() && x.feld === FELDER[f]; }))
+              funde.push({ wort: wort, feld: FELDER[f] });
+          }
+        });
+      });
+      return { regel: r, funde: funde };
+    });
+  }
+
+  /* ===== Speicher ===== */
+  var SCHLUESSEL = "fall-journal-v1";
+  var beispiel = [{
+    id: "beispiel",
+    titel: "Beispiel: Der Plan war zu groß",
+    situation: "- die Person wollte wieder regelmäßig trainieren\n- 5 Einheiten pro Woche vorgenommen\n- nach 2 Wochen erschöpft, 2 Einheiten verpasst, dann ganz aufgehört",
+    annahme: "„Wenn ich es nicht richtig mache, brauche ich gar nicht erst anzufangen.“",
+    wende: "- auf 2 kurze Einheiten pro Woche reduziert, fest im Kalender\n- verpasst heißt verschoben, nicht gescheitert",
+    kern: "Ein kleiner Plan, den man durchhält, bringt mehr als ein großer, den man abbricht.",
+    saeule: "Hürden im Kopf",
+    formate: ["Hooks", "Karussell", "Stories"],
+    notiz: "Ausgedachter Testfall, kein echter Fall.",
+    erkennbar: "",
+    status: "Entwurf",
+    datum: heute()
+  }];
+
+  function heute() { return new Date().toISOString().slice(0, 10); }
+  function deutsch(iso) { var t = (iso || "").split("-"); return t.length === 3 ? t[2] + "." + t[1] + "." + t[0] : iso; }
+
+  function laden() {
+    try { var d = JSON.parse(localStorage.getItem(SCHLUESSEL)); if (Array.isArray(d)) return d; } catch (e) {}
+    return beispiel.slice();
+  }
+  function sichern() {
+    try { localStorage.setItem(SCHLUESSEL, JSON.stringify(eintraege)); }
+    catch (e) { alert("Speichern im Browser ist hier nicht möglich (z. B. privates Fenster). Bitte direkt übergeben."); }
+  }
+
+  var eintraege = laden();
+  var aktuell = null;
+  var letztePruefung = [];
+  var form = document.getElementById("form");
+  document.getElementById("regelstand").textContent = REGELSTAND;
+
+  /* ===== Ansichten ===== */
+  function zeige(ziel) {
+    ["liste", "eintrag", "info"].forEach(function (n) { document.getElementById("v-" + n).hidden = n !== ziel; });
+    document.querySelectorAll("nav button").forEach(function (b) {
+      if (b.dataset.ziel === ziel) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+    });
+    window.scrollTo(0, 0);
+  }
+
+  function liste() {
+    var el = document.getElementById("liste");
+    el.innerHTML = "";
+    if (!eintraege.length) { el.innerHTML = '<p class="leer">Noch keine Einträge.</p>'; return; }
+    eintraege.slice().reverse().forEach(function (e) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "karte eintrag";
+      var h = document.createElement("h3"); h.textContent = e.titel || "Ohne Titel";
+      var m = document.createElement("div"); m.className = "meta";
+      var c = document.createElement("span"); c.className = "chip" + (e.status === "Entwurf" ? " entwurf" : ""); c.textContent = e.status;
+      m.appendChild(c); m.appendChild(document.createTextNode(deutsch(e.datum) + " · " + (e.saeule || "offen")));
+      b.appendChild(h); b.appendChild(m);
+      b.onclick = function () { oeffnen(e.id); };
+      el.appendChild(b);
+    });
+  }
+
+  function oeffnen(id) {
+    form.reset();
+    aktuell = id ? eintraege.find(function (e) { return e.id === id; }) : null;
+    document.getElementById("eintrag-titel").textContent = aktuell ? "Eintrag bearbeiten" : "Neuer Eintrag";
+    document.getElementById("loeschen").hidden = !aktuell;
+    if (aktuell) {
+      Object.keys(FELDER).forEach(function (k) { form[k].value = aktuell[k] || ""; });
+      form.querySelectorAll("[name=saeule]").forEach(function (r) { r.checked = r.value === (aktuell.saeule || "offen"); });
+      form.querySelectorAll("[name=formate]").forEach(function (c) { c.checked = (aktuell.formate || []).indexOf(c.value) > -1; });
+      form.querySelectorAll("[name=erkennbar]").forEach(function (r) { r.checked = r.value === aktuell.erkennbar; });
+    }
+    pruefen();
+    zeige("eintrag");
+  }
+
+  function ausForm() {
+    var d = {};
+    Object.keys(FELDER).forEach(function (k) { d[k] = form[k].value.trim(); });
+    var s = form.querySelector("[name=saeule]:checked"); d.saeule = s ? s.value : "offen";
+    d.formate = Array.prototype.map.call(form.querySelectorAll("[name=formate]:checked"), function (c) { return c.value; });
+    var e = form.querySelector("[name=erkennbar]:checked"); d.erkennbar = e ? e.value : "";
+    return d;
+  }
+
+  function speichern(status) {
+    var d = ausForm();
+    if (aktuell) { Object.assign(aktuell, d); if (status) aktuell.status = status; }
+    else { aktuell = Object.assign({ id: String(Date.now()), status: status || "Entwurf", datum: heute() }, d); eintraege.push(aktuell); }
+    sichern(); liste();
+  }
+
+  /* ===== Prüfung anzeigen ===== */
+  function pruefen() {
+    var d = ausForm();
+    letztePruefung = pruefeText(d);
+    var box = document.getElementById("regeln");
+    box.innerHTML = "";
+    var verstoesse = 0;
+    letztePruefung.forEach(function (p) {
+      var hat = p.funde.length > 0;
+      if (hat && p.regel.sperrt) verstoesse++;
+      var zeile = document.createElement("div");
+      zeile.className = "regel" + (hat ? (p.regel.sperrt ? " fehler" : " hinweis") : "");
+      var z = document.createElement("div"); z.className = "zeichen";
+      z.textContent = hat ? (p.regel.sperrt ? "✕" : "!") : "✓";
+      var inhalt = document.createElement("div");
+      var t = document.createElement("div"); t.className = "titel"; t.textContent = p.regel.titel;
+      inhalt.appendChild(t);
+      if (hat) {
+        var f = document.createElement("div"); f.className = "funde";
+        p.funde.forEach(function (x, i) {
+          if (i) f.appendChild(document.createTextNode(" · "));
+          var mk = document.createElement("mark"); mk.textContent = x.wort; f.appendChild(mk);
+          f.appendChild(document.createTextNode(" (" + x.feld + ")"));
+        });
+        var r = document.createElement("div"); r.className = "rat"; r.textContent = p.regel.rat;
+        inhalt.appendChild(f); inhalt.appendChild(r);
+      }
+      zeile.appendChild(z); zeile.appendChild(inhalt);
+      box.appendChild(zeile);
+    });
+
+    var pflicht = d.titel && d.situation && d.annahme;
+    var gruende = [];
+    if (!pflicht) gruende.push("Kurztitel, Situation und Annahme ausfüllen");
+    if (verstoesse) gruende.push(verstoesse + (verstoesse === 1 ? " Regel" : " Regeln") + " verletzt, Text anpassen");
+    if (d.erkennbar !== "nein") gruende.push(d.erkennbar === "" ? "Erkennungsfrage beantworten" : "Erkennungsfrage: nur bei „Nein“ übergeben, sonst weiter verfremden");
+    document.getElementById("uebergeben").disabled = gruende.length > 0;
+    var h = document.getElementById("hinweis");
+    h.textContent = gruende.length ? "Noch nicht übergabebereit: " + gruende.join(" · ") + "." : "";
+    h.hidden = !gruende.length;
+  }
+  form.addEventListener("input", pruefen);
+  form.addEventListener("change", pruefen);
+
+  /* ===== Übergabe ===== */
+  function dateiname(e) {
+    var slug = (e.titel || "fall").toLowerCase()
+      .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+    return heute() + "_Fall_" + slug + ".md";
+  }
+
+  function markdown(e) {
+    var hinweise = letztePruefung.filter(function (p) { return !p.regel.sperrt && p.funde.length; })
+      .map(function (p) { return p.regel.titel; });
+    return [
+      "---",
+      "art: fallbeispiel",
+      "datum: " + heute(),
+      "saeule: " + e.saeule,
+      "formate: [" + e.formate.join(", ") + "]",
+      "pruefung_app: bestanden (" + REGELSTAND + ")",
+      "erkennungsfrage: nein",
+      "hinweise: [" + hinweise.join(", ") + "]",
+      "status: eingang",
+      "---",
+      "",
+      "# " + e.titel,
+      "",
+      "## Situation und Beschwerden", "", e.situation, "",
+      "## Annahme der Person", "", e.annahme, "",
+      "## Was geholfen hat", "", e.wende || "–", "",
+      "## Fachlicher Kern", "", e.kern || "–", "",
+      "## Notiz an Claude", "", e.notiz || "–", ""
+    ].join("\n");
+  }
+
+  document.getElementById("uebergeben").onclick = function () {
+    pruefen();
+    if (this.disabled) return;
+    speichern();
+    var name = dateiname(aktuell);
+    var datei = new File([markdown(aktuell)], name, { type: "text/markdown" });
+    function erledigt() { aktuell.status = "Übergeben"; sichern(); liste(); zeige("liste"); }
+    if (navigator.canShare && navigator.canShare({ files: [datei] })) {
+      navigator.share({ files: [datei], title: name }).then(erledigt).catch(function () {});
+    } else {
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(datei); a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      erledigt();
+    }
+  };
+
+  form.addEventListener("submit", function (ev) { ev.preventDefault(); speichern(); zeige("liste"); });
+
+  document.getElementById("loeschen").onclick = function () {
+    if (!aktuell || !confirm("Diesen Eintrag von diesem Gerät löschen? Übergebene Dateien im Ordner bleiben erhalten.")) return;
+    eintraege = eintraege.filter(function (e) { return e !== aktuell; });
+    aktuell = null; sichern(); liste(); zeige("liste");
+  };
+
+  document.getElementById("neu").onclick = function () { oeffnen(null); };
+  document.querySelectorAll("nav button").forEach(function (b) {
+    b.onclick = function () { if (b.dataset.ziel === "eintrag") oeffnen(null); else zeige(b.dataset.ziel); };
+  });
+
+  // Testzugang für die Prüfung der Regeln (nur lesend)
+  window.__fallPruefung = function (text) { return pruefeText({ situation: text }).filter(function (p) { return p.funde.length; }).map(function (p) { return p.regel.id + ": " + p.funde.map(function (x) { return x.wort; }).join(", "); }); };
+
+  /* ===== Sperrwörter bearbeiten ===== */
+  var sperrFeld = document.getElementById("sperrwoerter");
+  function sperrStand() {
+    var n = sperrListe().length;
+    document.getElementById("sperr-stand").textContent = n ? n + (n === 1 ? " Sperrwort aktiv." : " Sperrwörter aktiv.") : "Noch keine Sperrwörter eingetragen.";
+  }
+  sperrFeld.value = sperrListe().join("\n");
+  sperrStand();
+  document.getElementById("sperr-speichern").onclick = function () {
+    try { localStorage.setItem(SPERR_SCHLUESSEL, sperrFeld.value); }
+    catch (e) { alert("Speichern im Browser ist hier nicht möglich."); return; }
+    eigeneRegelBauen(); sperrStand();
+  };
+
+  liste();
+
+  // Offline-Betrieb und Start vom Home-Bildschirm (nur über https oder localhost wirksam)
+  if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("service-worker.js").catch(function () {});
+    });
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#294038"/>
+  <!-- aufgeschlagenes Buch -->
+  <path d="M92 168 C148 146 212 152 256 184 L256 384 C212 352 148 346 92 368 Z" fill="#F9F6ED"/>
+  <path d="M420 168 C364 146 300 152 256 184 L256 384 C300 352 364 346 420 368 Z" fill="#E9E2CF"/>
+  <path d="M256 184 L256 384" stroke="#C8BFA6" stroke-width="3"/>
+  <!-- geschwungene Linie, endet an der Stiftspitze -->
+  <path d="M124 300 C160 248 200 340 240 292 C262 266 280 268 296 286" stroke="#C29A58" stroke-width="11" fill="none" stroke-linecap="round"/>
+  <!-- Stift -->
+  <g transform="translate(296 286) rotate(38)">
+    <path d="M0 0 L-13 -34 L13 -34 Z" fill="#F9F6ED"/>
+    <path d="M0 0 L-4.5 -12 L4.5 -12 Z" fill="#294038"/>
+    <rect x="-15" y="-196" width="30" height="162" rx="5" fill="#C29A58"/>
+    <rect x="-15" y="-196" width="30" height="30" rx="5" fill="#A0A995"/>
+    <rect x="-15" y="-172" width="30" height="6" fill="#8C957F"/>
+  </g>
+</svg>
